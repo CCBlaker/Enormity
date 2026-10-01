@@ -21,3 +21,10 @@
 *.ogg filter=lfs diff=lfs merge=lfs -text
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.mov filter=lfs diff=lfs merge=lfs -text
+
+# Track Unreal Binaries for other machines with no Visual Studio
+**/Binaries/**/*.dll filter=lfs diff=lfs merge=lfs -text
+**/Binaries/**/*.modules -text
+
+Binaries/**/*.pdb filter=lfs diff=lfs merge=lfs -text
+Binaries/**/*.exe filter=lfs diff=lfs merge=lfs -text

@@ -1,5 +1,6 @@
 # Visual Studio 2015 user specific files
 .vs/
+*.slnx
 
 # Compiled Object files
 *.slo
@@ -46,12 +47,26 @@
 SourceArt/**/*.png
 SourceArt/**/*.tga
 
-# Binary Files
-Binaries/*
+# Binary Files (Include Binaries in Repo to open on machines without visual studio)
+/Binaries/*
+!/Binaries/Win64/
+/Binaries/Win64/*
+!/Binaries/Win64/*.dll
+!/Binaries/Win64/*.modules
+
 Plugins/**/Binaries/*
+!Plugins/**/Binaries/Win64/
+Plugins/**/Binaries/Win64/*
+!Plugins/**/Binaries/Win64/*.dll
+!Plugins/**/Binaries/Win64/*.modules
+
 
 # Builds
 Build/*
+!Build/*/
+Build/*/**
+!Build/*/PakBlacklist*.txt
+!Build/**/*.ico
 
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !Build/*/
