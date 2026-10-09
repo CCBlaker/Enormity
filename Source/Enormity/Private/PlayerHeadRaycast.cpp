@@ -36,17 +36,6 @@ void APlayerHeadRaycast::LineTraceIntersect() {
 		ECC_Visibility,
 		RaycastParams
 	);
-
-	DrawDebugLine(
-		GetWorld(),
-		startPos,
-		endPos,
-		Hit ? FColor::Red : FColor::Green,
-		false,
-		0.0,
-		0,
-		1.0
-	);
 }
 
 void APlayerHeadRaycast::RaycastHover(float DeltaTime)

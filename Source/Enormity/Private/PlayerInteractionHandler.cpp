@@ -116,8 +116,6 @@ void UPlayerInteractionHandler::SetActorOutlineStencil(AActor* highlightActor, i
 	TArray<UPrimitiveComponent*> components;
 	highlightActor->GetComponents<UPrimitiveComponent>(components);
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("%s"), *highlightActor->GetName()));
-
 	for (UPrimitiveComponent* primative : components) {
 		primative->SetRenderCustomDepth(true);
 		primative->SetCustomDepthStencilValue(stencilVal);
