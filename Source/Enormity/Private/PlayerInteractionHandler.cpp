@@ -3,6 +3,7 @@
 #include "PlayerInteractionHandler.h"
 #include "Interactable.h"
 #include "PlayerHeadRaycast.h"
+#include "Kismet/GameplayStatics.h"
 
 UPlayerInteractionHandler::UPlayerInteractionHandler() {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -72,7 +73,7 @@ void UPlayerInteractionHandler::StartInteract() {
 
 	SetActorOutlineStencil(interactObject, 2);
 
-	IInteractable::Execute_StartInteract(interactObject);
+	IInteractable::Execute_StartInteract(interactObject, UGameplayStatics::GetPlayerController(GetWorld(), 0));
 }
 
 void UPlayerInteractionHandler::WhileInteract() {

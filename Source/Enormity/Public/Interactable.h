@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Interactable.generated.h"
+#include "Interactable.generated.h"	
 
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, Blueprintable)
@@ -18,7 +18,7 @@ class ENORMITY_API IInteractable
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = Interaction)
-	void StartInteract();
+	void StartInteract(APlayerController* InteractingController);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = Interaction)
 	void WhileInteract();
