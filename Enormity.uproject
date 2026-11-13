@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{9C5C231D-4120-2B95-A499-1F82132A37D5}",
+	"EngineAssociation": "{8B176D8D-4F94-9F56-18FB-9985EBCE91FD}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -23,6 +23,14 @@
 		},
 		{
 			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		},
+		{
+			"Name": "PCGExternalDataInterop",
+			"Enabled": true
+		},
+		{
+			"Name": "PCGInstancedActorsInterop",
 			"Enabled": true
 		}
 	]
