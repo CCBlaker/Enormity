@@ -1,13 +1,13 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{130BA4D5-4A2B-FEAA-278A-848AA82D5CB1}",
+	"EngineAssociation": "{47D09E95-4BAA-85CF-ED83-BDAF0739BD5C}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
 		{
 			"Name": "Enormity",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PostConfigInit",
 			"AdditionalDependencies": [
 				"Engine"
 			]

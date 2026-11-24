@@ -1,6 +1,22 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Enormity.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/Paths.h"
+#include "ShaderCore.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Enormity, "Enormity" );
+class FEnormityModule : public FDefaultGameModuleImpl
+{
+public:
+    virtual void StartupModule() override
+    {
+        // Maps physical "YourProject/Shaders" to virtual "/Project" path
+        FString ShaderDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Shaders"));
+        AddShaderSourceDirectoryMapping(TEXT("/Project"), ShaderDir);
+    }
+
+    virtual void ShutdownModule() override
+    {
+        ResetAllShaderSourceDirectoryMappings();
+    }
+};
+
+IMPLEMENT_PRIMARY_GAME_MODULE( FEnormityModule, Enormity, "Enormity" );

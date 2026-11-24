@@ -1,0 +1,55 @@
+// FractalParallax.ush
+// Tangent-space raymarched Menger sponge, tiled in UV, inset below the mesh surface.
+// Fractal space: xy = uv*Tiling (1 unit = 1 cell), z = depth DOWN from the surface, 0..1.
+
+float MengerDE(float3 p, int it)
+{
+    // cell [-1,1]^3 ; top face (q.z = 1) sits on the mesh surface
+    float3 q = float3(frac(p.xy) * 2 - 1, 1 - 2 * p.z);
+    float3 b = abs(q) - 1;
+    float d = min(max(b.x, max(b.y, b.z)), 0) + length(max(b, 0));
+    float s = 1;
+    for (int i = 0; i < it; i++)
+    {
+        float3 a = q * s - 2 * floor(q * s * 0.5) - 1;
+        s *= 3;
+        float3 r = abs(1 - 3 * abs(a));
+        float c = (min(max(r.x, r.y), min(max(r.y, r.z), max(r.z, r.x))) - 1) / s;
+        d = max(d, c);
+    }
+    return d * 0.5; // q space is 2x p space
+}
+
+// Returns float4(tangent-space normal, AO). hitZ = 0..1 depth below surface (1 = miss/bottom).
+float4 FractalParallax(float2 uv, float3 viewTS, float tiling, float depth,
+                       int steps, int iters, out float hitZ)
+{
+    float3 ro = float3(uv * tiling, 0);
+    viewTS.z = max(viewTS.z, 0.05);
+    // ray points away from camera, "down" = +z in fractal space; z squashed by Depth
+    float3 rd = normalize(float3(-viewTS.xy, viewTS.z / depth));
+
+    float t = 0, d = 1;
+    int i = 0;
+    [loop] for (; i < steps; i++)
+    {
+        d = MengerDE(ro + rd * t, iters);
+        if (d < 2e-4 + t * 1e-4) break;
+        t += d * 0.9;
+        if (rd.z * t > 1) break;
+    }
+
+    float3 p = ro + rd * t;
+    hitZ = saturate(p.z);
+    if (d >= 2e-4 + t * 1e-4)                      // marched out the bottom: no hit
+        return float4(0, 0, 1, 0);
+
+    const float2 k = float2(1, -1) * 1e-3;         // tetrahedron normal
+    float3 n = normalize(k.xyy * MengerDE(p + k.xyy, iters) + k.yyx * MengerDE(p + k.yyx, iters) +
+                         k.yxy * MengerDE(p + k.yxy, iters) + k.xxx * MengerDE(p + k.xxx, iters));
+    n = normalize(float3(n.x, n.y, n.z / depth));  // undo z squash (inverse-transpose)
+    n.z = -n.z;                                    // fractal z is down, tangent z is up
+
+    float ao = (1 - (float)i / steps) * lerp(1, 0.25, hitZ);
+    return float4(n, ao);
+}
