@@ -2,7 +2,9 @@
 // Tangent-space raymarched Menger sponge, tiled in UV, inset below the mesh surface.
 // Fractal space: xy = uv*Tiling (1 unit = 1 cell), z = depth DOWN from the surface, 0..1.
 
-float MengerDE(float3 p, int it)
+#define FRACTAL_DE MandelboxDE
+
+float MengerDE(float3 p, int it, float4 params)
 {
     // cell [-1,1]^3 ; top face (q.z = 1) sits on the mesh surface
     float3 q = float3(frac(p.xy) * 2 - 1, 1 - 2 * p.z);
@@ -20,36 +22,93 @@ float MengerDE(float3 p, int it)
     return d * 0.5; // q space is 2x p space
 }
 
+// Mandelbox DE. Mirror-tiled in xy (no cell seams), floor so rays always land.
+float MandelboxDE(float3 p, int it, float4 params)
+{
+    const float S = 2.0;              // cell half-extent in mandelbox space: bigger = more of the structure
+    const float SC = 2.5;            // mandelbox scale: try -1.5, 2.0, -2.0
+    const float FLOOR = 0.9;          // z where the solid floor sits (0..1)
+    float2 tri = abs(frac(p.xy * 0.5) * 2 - 1);                  // triangle wave, period 1 -> mirrored tiles
+    float3 q = float3((tri - 0.5) * 2 * S, (p.z - 0.5) * 2 * S); // slope 2S in every axis
+    float3 z = q;
+    float dr = 1;
+    for (int i = 0; i < it; i++)
+    {
+        z = clamp(z, -1, 1) * 2 - z;                             // box fold
+        float r2 = dot(z, z);
+        if (r2 < 0.25)    { z *= 4;      dr *= 4; }              // sphere fold
+        else if (r2 < 1)  { z /= r2;     dr /= r2; }
+        z = SC * z + q;
+        dr = dr * abs(SC) + 1;
+    }
+    float d = 0.5 * length(z) / abs(dr) / (2 * S);
+    return min(d, FLOOR - p.z);                                  // union with floor slab
+}
+
 // Returns float4(tangent-space normal, AO). hitZ = 0..1 depth below surface (1 = miss/bottom).
-float4 FractalParallax(float2 uv, float3 viewTS, float tiling, float depth,
-                       int steps, int iters, out float hitZ)
+float4 FractalParallax(float2 uv, float3 viewTS, float tiling, float depth, float4 params, int steps, int iters, float precision,
+                   out float hitZ, out float mask, out float2 hitUV)
 {
     float3 ro = float3(uv * tiling, 0);
     viewTS.z = max(viewTS.z, 0.05);
     // ray points away from camera, "down" = +z in fractal space; z squashed by Depth
     float3 rd = normalize(float3(-viewTS.xy, viewTS.z / depth));
+    
 
-    float t = 0, d = 1;
+        float t = 0, d = 1;
     int i = 0;
+    bool hit = false;
     [loop] for (; i < steps; i++)
     {
-        d = MengerDE(ro + rd * t, iters);
-        if (d < 2e-4 + t * 1e-4) break;
-        t += d * 0.9;
-        if (rd.z * t > 1) break;
+        d = FRACTAL_DE(ro + rd * t, iters, params);
+        if (d < 1.5e-3 + t * 2e-3) { hit = true; break; }   // looser, grows with distance
+        t += d * 0.5;                                         // conservative step for Mandelbox
+        if (rd.z * t > 1) break;                              // exited the bottom
     }
+    if (!hit && rd.z * t <= 1) hit = true;                    // out of steps = surface, NOT a miss
 
     float3 p = ro + rd * t;
     hitZ = saturate(p.z);
-    if (d >= 2e-4 + t * 1e-4)                      // marched out the bottom: no hit
-        return float4(0, 0, 1, 0);
+    hitUV = p.xy / tiling;
+    mask = 1;
+    if (!hit) { mask = 0; return float4(0, 0, 1, 0); }
+    const float2 k = float2(1, -1) * 1e-4;         // tetrahedron normal
+    float3 n = normalize(k.xyy * FRACTAL_DE(p + k.xyy, iters, params) + k.yyx * FRACTAL_DE(p + k.yyx, iters, params) +
+                         k.yxy * FRACTAL_DE(p + k.yxy, iters, params) + k.xxx * FRACTAL_DE(p + k.xxx, iters, params));
 
-    const float2 k = float2(1, -1) * 1e-3;         // tetrahedron normal
-    float3 n = normalize(k.xyy * MengerDE(p + k.xyy, iters) + k.yyx * MengerDE(p + k.yyx, iters) +
-                         k.yxy * MengerDE(p + k.yxy, iters) + k.xxx * MengerDE(p + k.xxx, iters));
     n = normalize(float3(n.x, n.y, n.z / depth));  // undo z squash (inverse-transpose)
     n.z = -n.z;                                    // fractal z is down, tangent z is up
 
-    float ao = (1 - (float)i / steps) * lerp(1, 0.25, hitZ);
-    return float4(n, ao);
+    float itr = ((float)i / steps);
+    return float4(n, itr);
+}
+
+// World-aligned: projects along the dominant axis of geoN. Tile = TileCm world cm, depth = DepthCm world cm.
+float4 FractalWorld(float3 wp, float3 camVec, float3 geoN, float tileCm, float depthCm, float4 params, int steps, int iters, float precision,
+                    out float hitZ, out float mask, out float2 hitUV, out float pdoCm)
+{
+    float3 a = abs(geoN);
+    float3 s = float3(geoN.x < 0 ? -1 : 1, geoN.y < 0 ? -1 : 1, geoN.z < 0 ? -1 : 1);
+    float3 T, B, N;
+    if (a.x >= a.y && a.x >= a.z) { N = float3(s.x, 0, 0); T = float3(0, 1, 0); B = float3(0, 0, s.x); }
+    else if (a.y >= a.z)          { N = float3(0, s.y, 0); T = float3(0, 0, 1); B = float3(s.y, 0, 0); }
+    else                          { N = float3(0, 0, s.z); T = float3(1, 0, 0); B = float3(0, s.z, 0); }
+
+    float3 vTS = float3(dot(camVec, T), dot(camVec, B), dot(camVec, N));
+    float4 r = FractalParallax(float2(dot(wp, T), dot(wp, B)) / tileCm, vTS, 1, depthCm / tileCm, params,
+                               steps, iters, precision, hitZ, mask, hitUV);
+    r.xyz = r.x * T + r.y * B + r.z * N;                 // normal is now WORLD space
+    pdoCm = hitZ * depthCm / max(vTS.z, 0.05);           // ready to plug into PDO
+    return r;
+}
+
+// World units (cm) per 1.0 of UV at this pixel. Call with the ORIGINAL UV, not the parallaxed one.
+float UVWorldScale(float3 wp, float2 uv)
+{
+    float3 px = ddx(wp), py = ddy(wp);
+    float2 ux = ddx(uv), uy = ddy(uv);
+    float det = ux.x * uy.y - ux.y * uy.x;
+    float3 dPdu = ( uy.y * px - ux.y * py) / det;   // solve J * [dP/du, dP/dv] = [dP/dx, dP/dy]
+    float3 dPdv = (-uy.x * px + ux.x * py) / det;
+    return 0.5 * (length(dPdu) + length(dPdv));     // average u and v
 }
