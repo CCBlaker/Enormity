@@ -25,9 +25,9 @@ float MengerDE(float3 p, int it, float4 params)
 // Mandelbox DE. Mirror-tiled in xy (no cell seams), floor so rays always land.
 float MandelboxDE(float3 p, int it, float4 params)
 {
-    const float S = 2.0;              // cell half-extent in mandelbox space: bigger = more of the structure
-    const float SC = 2.5;            // mandelbox scale: try -1.5, 2.0, -2.0
-    const float FLOOR = 0.9;          // z where the solid floor sits (0..1)
+    const float S = params.x;              // cell half-extent in mandelbox space: bigger = more of the structure
+    const float SC = params.y;            // mandelbox scale: try -1.5, 2.0, -2.0
+    const float FLOOR = params.z;          // z where the solid floor sits (0..1)
     float2 tri = abs(frac(p.xy * 0.5) * 2 - 1);                  // triangle wave, period 1 -> mirrored tiles
     float3 q = float3((tri - 0.5) * 2 * S, (p.z - 0.5) * 2 * S); // slope 2S in every axis
     float3 z = q;
@@ -61,7 +61,7 @@ float4 FractalParallax(float2 uv, float3 viewTS, float tiling, float depth, floa
     [loop] for (; i < steps; i++)
     {
         d = FRACTAL_DE(ro + rd * t, iters, params);
-        if (d < 1.5e-3 + t * 2e-3) { hit = true; break; }   // looser, grows with distance
+        if (d < (1.5e-3*precision) + t * (2e-3*precision)) { hit = true; break; }   // looser, grows with distance
         t += d * 0.5;                                         // conservative step for Mandelbox
         if (rd.z * t > 1) break;                              // exited the bottom
     }
@@ -72,7 +72,7 @@ float4 FractalParallax(float2 uv, float3 viewTS, float tiling, float depth, floa
     hitUV = p.xy / tiling;
     mask = 1;
     if (!hit) { mask = 0; return float4(0, 0, 1, 0); }
-    const float2 k = float2(1, -1) * 1e-4;         // tetrahedron normal
+    const float2 k = float2(1, -1) * (1e-4*precision);         // tetrahedron normal
     float3 n = normalize(k.xyy * FRACTAL_DE(p + k.xyy, iters, params) + k.yyx * FRACTAL_DE(p + k.yyx, iters, params) +
                          k.yxy * FRACTAL_DE(p + k.yxy, iters, params) + k.xxx * FRACTAL_DE(p + k.xxx, iters, params));
 
